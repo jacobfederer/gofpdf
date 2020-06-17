@@ -454,6 +454,7 @@ type Pdf interface {
 	SetTopMargin(margin float64)
 	SetUnderlineThickness(thickness float64)
 	SetXmpMetadata(xmpStream []byte)
+	SetPDFVersion(version string)
 	SetX(x float64)
 	SetXY(x, y float64)
 	SetY(y float64)
@@ -567,6 +568,7 @@ type Fpdf struct {
 	zoomMode         string                     // zoom display mode
 	layoutMode       string                     // layout display mode
 	xmp              []byte                     // XMP metadata
+	addOutputIntent  bool                       // Output intent
 	producer         string                     // producer
 	title            string                     // title
 	subject          string                     // subject
