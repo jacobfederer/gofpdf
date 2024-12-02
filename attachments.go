@@ -5,24 +5,45 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Attachment defines a content to be included in the pdf, in one
 // of the following ways :
-// 	- associated with the document as a whole : see SetAttachments()
-//	- accessible via a link localized on a page : see AddAttachmentAnnotation()
+//   - associated with the document as a whole : see SetAttachments()
+//   - accessible via a link localized on a page : see AddAttachmentAnnotation()
 type Attachment struct {
 	Content []byte
 
 	// Filename is the displayed name of the attachment
 	Filename string
 
+	// Mimetype indicates what file type is embedded
+	Mimetype string
+
 	// Description is only displayed when using AddAttachmentAnnotation(),
 	// and might be modified by the pdf reader.
 	Description string
 
+	// Relationship indicates to readers or processors of the file, what relationship
+	//the embedded file has to visual representation (e.g. supporting or replacing (alternative), please see enums for types)
+	Relationship Relationship
+
+	// ModificationTime indicates when the embedded file was created or embedded
+	ModificationTime time.Time
+
 	objectNumber int // filled when content is included
 }
+
+type Relationship string
+
+const (
+	RelationshipUnknown     Relationship = ""
+	RelationshipData        Relationship = "Data"
+	RelationshipSource      Relationship = "Source"
+	RelationshipAlternative Relationship = "Alternative"
+	RelationshipSupplement  Relationship = "Supplement"
+)
 
 // return the hex encoded checksum of `data`
 func checksum(data []byte) string {
@@ -34,16 +55,25 @@ func checksum(data []byte) string {
 	return hex.EncodeToString(sl)
 }
 
-// Writes a compressed file like object as ``/EmbeddedFile``. Compressing is
-// done with deflate. Includes length, compressed length and MD5 checksum.
-func (f *Fpdf) writeCompressedFileObject(content []byte) {
+// Writes a compressed file like object as “/EmbeddedFile“. Compressing is
+// done with deflate. Includes length, compressed length, MD5 checksum and optional the mimetype and the modification time.
+func (f *Fpdf) writeCompressedFileObject(content []byte, mimeType string, modTime time.Time) {
 	lenUncompressed := len(content)
 	sum := checksum(content)
 	compressed := sliceCompress(content)
 	lenCompressed := len(compressed)
 	f.newobj()
-	f.outf("<< /Type /EmbeddedFile /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d >> >>\n",
-		lenCompressed, sum, lenUncompressed)
+
+	var modTimeString string
+
+	if !modTime.IsZero() {
+		modTimeString = fmt.Sprintf("D:%s", modTime.UTC().Format("20060102150405"))
+	}
+
+	f.outf("<< /Type /EmbeddedFile /Subtype %s /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d /ModDate %s >> >>\n",
+		f.textstring(mimeType),
+		lenCompressed,
+		sum, lenUncompressed, f.textstring(modTimeString))
 	f.putstream(compressed)
 	f.out("endobj")
 }
@@ -55,13 +85,22 @@ func (f *Fpdf) embed(a *Attachment) {
 	}
 	oldState := f.state
 	f.state = 1 // we write file content in the main buffer
-	f.writeCompressedFileObject(a.Content)
+	f.writeCompressedFileObject(a.Content, a.Mimetype, a.ModificationTime)
 	streamID := f.n
 	f.newobj()
-	f.outf("<< /Type /Filespec /F () /UF %s /EF << /F %d 0 R >> /Desc %s\n>>",
+
+	var relationshipString string
+
+	if a.Relationship != RelationshipUnknown {
+		relationshipString = fmt.Sprintf("/%s", string(a.Relationship))
+	}
+
+	f.outf("<< /Type /Filespec /F () /UF %s /EF << /F %d 0 R >> /AFRelationship %s /Desc %s  \n>>",
 		f.textstring(utf8toutf16(a.Filename)),
 		streamID,
-		f.textstring(utf8toutf16(a.Description)))
+		relationshipString,
+		f.textstring(utf8toutf16(a.Description)),
+	)
 	f.out("endobj")
 	a.objectNumber = f.n
 	f.state = oldState

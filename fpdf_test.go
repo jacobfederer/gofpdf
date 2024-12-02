@@ -2878,6 +2878,32 @@ func ExampleFpdf_SetAttachments() {
 	// Successfully generated pdf/Fpdf_EmbeddedFiles.pdf
 }
 
+// ExampleFpdf_SetAttachments_Zugferd demonstrates embedding a zugferd/x-rechnung xml in a PDF
+func ExampleFpdf_SetAttachments_zugferd() {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+
+	// Global attachments
+	file, err := os.ReadFile("testdata/sample-zugferd-factur-x.xml")
+	if err != nil {
+		pdf.SetError(err)
+	}
+	zugferdAttachement := gofpdf.Attachment{
+		Content:          file,
+		Filename:         "factur-x.xml",
+		Mimetype:         "text/xml",
+		Description:      "Factur-x invoice",
+		Relationship:     gofpdf.RelationshipAlternative,
+		ModificationTime: time.Date(2024, time.December, 2, 14, 9, 0, 0, time.UTC),
+	}
+	pdf.SetAttachments([]gofpdf.Attachment{zugferdAttachement})
+
+	fileStr := example.Filename("ExampleFpdf_SetAttachments_zugferd")
+	err = pdf.OutputFileAndClose(fileStr)
+	example.Summary(err, fileStr)
+	// Output:
+	// Successfully generated pdf/ExampleFpdf_SetAttachments_zugferd.pdf
+}
+
 func ExampleFpdf_AddAttachmentAnnotation() {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetFont("Arial", "", 12)
