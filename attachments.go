@@ -70,8 +70,14 @@ func (f *Fpdf) writeCompressedFileObject(content []byte, mimeType string, modTim
 		modTimeString = fmt.Sprintf("D:%s", modTime.UTC().Format("20060102150405"))
 	}
 
+	var formattedMimeType string
+
+	if mimeType != "" {
+		formattedMimeType = fmt.Sprintf("/%s", strings.ReplaceAll(mimeType, "/", "#2F"))
+	}
+
 	f.outf("<< /Type /EmbeddedFile /Subtype %s /Length %d /Filter /FlateDecode /Params << /CheckSum <%s> /Size %d /ModDate %s >> >>\n",
-		f.textstring(mimeType),
+		formattedMimeType,
 		lenCompressed,
 		sum, lenUncompressed, f.textstring(modTimeString))
 	f.putstream(compressed)
