@@ -205,16 +205,30 @@ func (f *Fpdf) putAnnotationsAttachments() {
 
 func (f *Fpdf) putAttachmentAnnotationLinks(out *fmtBuffer, page int) {
 	for _, an := range f.pageAttachments[page] {
-		x1, y1, x2, y2 := an.x, an.y, an.x+an.w, an.y-an.h
-		as := fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [%.2f %.2f %.2f %.2f] /Length 0 >>",
-			x1, y1, x2, y2)
-		as += "\nstream\nendstream"
+		// Rearrange points in the correct order
+		x1 := an.x
+		yTop := an.y
+		x2 := an.x + an.w
+		y1 := yTop - an.h
+
+		// Make sure that Rect [llx lly urx ury] is in a ascending order
+		ury := yTop
+		lly := y1
+		if lly > ury {
+			lly, ury = ury, lly
+		}
 
 		out.printf("<< /Type /Annot /Subtype /FileAttachment /Rect [%.2f %.2f %.2f %.2f] /Border [0 0 0]\n",
-			x1, y1, x2, y2)
+			x1, lly, x2, ury)
 		out.printf("/Contents %s ", f.textstring(utf8toutf16(an.Description)))
 		out.printf("/T %s ", f.textstring(utf8toutf16(an.Filename)))
-		out.printf("/AP << /N %s>>", as)
-		out.printf("/FS %d 0 R >>\n", an.objectNumber)
+		out.printf("/Name /PushPin ")
+		out.printf("/FS %d 0 R ", an.objectNumber)
+		// If a relationship is set, also add an AF array that points to the Filespec
+		if an.Relationship != RelationshipUnknown {
+			out.printf("/AF [%d 0 R] ", an.objectNumber)
+		}
+		out.printf(">>\n")
+
 	}
 }
