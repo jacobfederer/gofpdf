@@ -4719,6 +4719,13 @@ func (f *Fpdf) putcatalog() {
 	// Name dictionary :
 	//	-> Javascript
 	//	-> Embedded files
+	if len(f.attachments) > 0 {
+		af := f.getAssociatedFilesArray()
+		if af != "" {
+			// Document-level association of attached files (e.g., Factur-X XML as /Alternative)
+			f.outf("\n/AF [%s]", af)
+		}
+	}
 	f.out("/Names <<")
 	// JavaScript
 	if f.javascript != nil {

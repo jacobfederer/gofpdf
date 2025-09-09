@@ -141,6 +141,24 @@ func (f Fpdf) getEmbeddedFiles() string {
 	return nameTree
 }
 
+// Return a space-separated list of object references (e.g., "12 0 R 15 0 R")
+// for all document-level attachments that declare an AFRelationship.
+// This is intended to be used in the Catalog's /AF array.
+func (f Fpdf) getAssociatedFilesArray() string {
+	refs := make([]string, 0, len(f.attachments))
+	for _, as := range f.attachments {
+		if as.objectNumber == 0 {
+			// not embedded yet; skip
+			continue
+		}
+		if as.Relationship == RelationshipUnknown {
+			continue
+		}
+		refs = append(refs, fmt.Sprintf("%d 0 R", as.objectNumber))
+	}
+	return strings.Join(refs, " ")
+}
+
 // ---------------------------------- Annotations ----------------------------------
 
 type annotationAttach struct {
